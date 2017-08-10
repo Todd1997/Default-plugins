@@ -44,13 +44,20 @@ public _make( )
 {
 	new AdminName[32];
 	read_argv( 1, AdminName, cm(AdminName) );
-	new PlayerId = find_player("al", AdminName );
-
+	
 	if( is_str_empty(AdminName) )
 	{
 		server_print( "Please specify the admin information, example: amx_set_admin <Name> <Admin Level> <Admin password>" );
 		return PLUGIN_HANDLED;
 	}	
+	
+	new PlayerId = find_player("al", AdminName );
+	
+	if( !is_user_connected(PlayerId))
+	{
+		server_print( "User '%s' not finded on  the server!", AdminName);
+		return PLUGIN_HANDLED;
+	}
 
 	new AdminLevel = read_arg_int(2);
 
