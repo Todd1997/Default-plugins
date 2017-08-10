@@ -10,11 +10,7 @@ enum _:PlayerData
 	PD_AdminPassword
 }
 
-new PD[MAX_PLAYERS_NUM+1][PlayerData];
-
-new CvarPw;
-
-new giAdminLevel[33];
+new PD[MAX_PLAYERS_NUM+1][PlayerData] ,CvarPw, giAdminLevel[MAX_PLAYERS_NUM+1];
 
 public plugin_init()
 {
@@ -24,6 +20,10 @@ public plugin_init()
 	/* Note: To remove an admin just set his admin level to '0' */
 	/* Example making an user admin: amx_set_admin MyName 5 123 ( 5=adminlevel, 123=password)*/
 	register_srvcmd( "amx_set_admin", "_make" );
+	
+	/* Remove an admin from the admin vault list */
+	/* Specify just the name of the user ,example: amx_remove_admin <Name> */
+	register_srvcmd( "amx_remove_admin","_remove" );
 
 	NvaultHandle = nvault_open("AdminSystems");
 
@@ -46,9 +46,9 @@ public _make( )
 	read_argv( 1, AdminName, cm(AdminName) );
 	new PlayerId = find_player("al", AdminName );
 
-	if( !PlayerId || !is_user_connected(PlayerId) )
+	if( is_str_empty(AdminName) )
 	{
-		server_print( "User '%s' not finded, please try again.", AdminName );
+		server_print( "Please specify the admin information, example: amx_set_admin <Name> <Admin Level> <Admin password>" );
 		return PLUGIN_HANDLED;
 	}	
 
@@ -56,7 +56,8 @@ public _make( )
 
 	if( !AdminLevel )
 	{
-		server_print( "The admin level your specified ( '%i' ) is not avaible!", AdminLevel );
+		server_print( "The admin level your specified is invalid!" );
+		return PLUGIN_HANDLED;
 	}
 
 	PD[PlayerId][PD_AdminLevel] = AdminLevel;
@@ -77,6 +78,27 @@ public _make( )
 	nvault_set_array( NvaultHandle, AdminName, PD[PlayerId], sizeof( PD[] ) );
 	
 	server_print( "You succesfully make admin the user, please copy the next information:^nAdmin Nick-Name: %s^nAdmin Password: %i^nAdmin Level:%i", AdminName, AdminPw, AdminLevel);
+	return PLUGIN_HANDLED;
+}
+
+public _remove()
+{
+	new AdminName[32]; read_argv( 1, AdminName, cm(AdminName));
+	new PlayerId = find_player("al", AdminName );
+	
+	if( is_str_empty(AdminName) )
+	{
+		server_print("Please specify the <Admin Name> to remove it.");
+		return PLUGIN_HANDLED;
+	}
+	
+	/*Here we don't need to use return PLUGIN_HANDLED' */
+	if( is_user_connected(PlayerId) )
+	{
+		giAdminLevel[PlayerId] = 0;
+	}
+	nvault_remove( NvaultHandle, AdminName );
+	server_print("Admin '%s' has been succesfully removed!",AdminName);
 	return PLUGIN_HANDLED;
 }
 
@@ -124,12 +146,27 @@ public client_disconnect(id)
 public plugin_natives( )
 {
 	register_native( "get_user_adminlevel", "_get_admin_level" );
+	register_native( "set_user_adminlevel", "_set_admin_level" );
 	register_native( "is_user_admin", "_is_admin" );
 }
 
 public _get_admin_level(Pl,Pr)
 {
 	return giAdminLevel[get_param(1)];
+}
+public _set_admin_level(Pl,Pr)
+{
+	new Id = get_param(1);
+	new LevelValue = get_param(2);
+	
+	new Name[32];
+	get_user_info( Id, "name", Name, cm(Name));
+	
+	PD[Id][PD_AdminLevel] = LevelValue;
+	giAdminLevel[Id] = LevelValue;
+	PD[Id][PD_AdminPassword] = get_param(3);
+	
+	nvault_set_array(NvaultHandle, Name, PD[Id], sizeof(PD[]));
 }
 
 public _is_admin(Pl,Pr)
